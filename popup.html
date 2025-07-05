@@ -3,270 +3,337 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTheme Popup</title>
-    <link rel="stylesheet" href="tailwind.min.css">
-        <!-- Link your JavaScript file -->
-    <script src="popup.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>YouTheme</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: 380px;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #1f2937;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .section h3 {
+            color: #374151;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .theme-selector {
+            margin-bottom: 10px;
+        }
+        
+        .theme-selector select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 8px;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .element-info {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            color: #6b7280;
+            border-left: 3px solid #3b82f6;
+        }
+        
+        .control-group {
+            margin-bottom: 12px;
+        }
+        
+        .control-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+        
+        .color-input-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .color-input {
+            flex: 1;
+            padding: 6px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .color-picker {
+            width: 40px;
+            height: 32px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        .range-input {
+            width: 100%;
+            margin: 4px 0;
+        }
+        
+        .range-value {
+            font-size: 11px;
+            color: #6b7280;
+            text-align: center;
+        }
+        
+        .property-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .status.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status.info {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        
+        .status.warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .advanced-toggle {
+            font-size: 12px;
+            color: #6b7280;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-bottom: 10px;
+        }
+        
+        .advanced-controls {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .btn-group .btn {
+            flex: 1;
+            margin-bottom: 0;
+        }
+    </style>
 </head>
 <body>
+    <div class="header">
+        <h1>YouTheme</h1>
+    </div>
 
-    <!-- Main content for the popup. This will be the "Select a Theme" view. -->
-    <div id="mainPopupView">
-        <h2 class="section-title">Select a Theme</h2>
-        <p class="text-sm text-gray-600 mb-4">
-            Choose a pre-defined theme or customize your own.
-        </p>
-        <select id="themeSelect" class="select-input mb-4">
-            <option value="default-dark" selected>YouTheme Default Dark</option>
-            <option value="midnight-blue">Midnight Blue</option>
-            <option value="dracula-inspired">Dracula Inspired</option>
-            <option value="nord-inspired">Nord Inspired</option>
+    <div id="status" class="status hidden"></div>
+    
+    <!-- Preset Themes Section -->
+    <div class="section">
+        <h3>Preset Themes</h3>
+        <div class="theme-selector">
+            <select id="themeSelect">
+                <option value="">Select a theme...</option>
+                <option value="dark">Dark Theme</option>
+                <option value="midnight">Midnight Blue</option>
+                <option value="dracula">Dracula</option>
         </select>
+        </div>
+        <button id="applyThemeBtn" class="btn btn-primary">Apply Theme</button>
+    </div>
 
-        <button id="applyThemeBtn" class="button-primary mt-4">Apply Selected Theme</button>
-        <button id="customizeThemeBtn" class="button-secondary mt-2">Customize Current Theme</button>
-        <div class="message-box mt-4">
-            👋 Select a theme from the dropdown and click "Apply" or "Customize".
+    <!-- Element Customizer Section -->
+    <div class="section">
+        <h3>Element Customizer</h3>
+        <button id="selectElementBtn" class="btn btn-secondary">🎯 Select Element to Customize</button>
+        
+        <div id="elementCustomizer" class="hidden">
+            <div id="elementInfo" class="element-info"></div>
+            
+            <!-- Basic Controls -->
+            <div class="control-group">
+                <label class="control-label">Background Color</label>
+                <div class="color-input-group">
+                    <input type="color" id="backgroundColorPicker" class="color-picker" value="#1a1a1a">
+                    <input type="text" id="backgroundColorText" class="color-input" placeholder="#1a1a1a">
+        </div>
+            </div>
+            
+            <div class="control-group">
+                <label class="control-label">Text Color</label>
+                <div class="color-input-group">
+                    <input type="color" id="textColorPicker" class="color-picker" value="#ffffff">
+                    <input type="text" id="textColorText" class="color-input" placeholder="#ffffff">
+            </div>
+        </div>
+
+            <div class="control-group">
+                <label class="control-label">Border Color</label>
+                <div class="color-input-group">
+                    <input type="color" id="borderColorPicker" class="color-picker" value="#4b5563">
+                    <input type="text" id="borderColorText" class="color-input" placeholder="#4b5563">
+        </div>
+            </div>
+            
+            <!-- Advanced Toggle -->
+            <div class="advanced-toggle" id="advancedToggle">⚙️ Show Advanced Options</div>
+            
+            <!-- Advanced Controls -->
+            <div id="advancedControls" class="advanced-controls hidden">
+                <div class="property-grid">
+                    <div class="control-group">
+                        <label class="control-label">Border Width</label>
+                        <input type="range" id="borderWidthRange" class="range-input" min="0" max="10" value="1">
+                        <div class="range-value" id="borderWidthValue">1px</div>
+        </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Border Radius</label>
+                        <input type="range" id="borderRadiusRange" class="range-input" min="0" max="20" value="0">
+                        <div class="range-value" id="borderRadiusValue">0px</div>
+        </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Opacity</label>
+                        <input type="range" id="opacityRange" class="range-input" min="0" max="100" value="100">
+                        <div class="range-value" id="opacityValue">100%</div>
+        </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Font Size</label>
+                        <input type="range" id="fontSizeRange" class="range-input" min="8" max="32" value="14">
+                        <div class="range-value" id="fontSizeValue">14px</div>
+            </div>
+        </div>
+
+                <div class="control-group">
+                    <label class="control-label">Padding</label>
+                    <input type="range" id="paddingRange" class="range-input" min="0" max="50" value="10">
+                    <div class="range-value" id="paddingValue">10px</div>
+        </div>
+
+                <div class="control-group">
+                    <label class="control-label">Margin</label>
+                    <input type="range" id="marginRange" class="range-input" min="0" max="50" value="0">
+                    <div class="range-value" id="marginValue">0px</div>
+            </div>
+        </div>
+
+            <!-- Action Buttons -->
+            <div class="btn-group">
+                <button id="applyCustomStyleBtn" class="btn btn-success">Apply Style</button>
+                <button id="resetElementBtn" class="btn btn-secondary">Reset</button>
+            </div>
         </div>
     </div>
 
-    <!-- This section would typically be hidden initially and shown when "Customize Current Theme" is clicked.
-         For this boilerplate, we'll keep it as a separate conceptual block.
-         In a real extension, you'd dynamically show/hide or navigate between views. -->
-    <div id="customizerView" style="display: none;">
-        <h2 class="section-title">Currently Editing: <span id="editingThemeName">YouTheme Default Dark</span></h2>
-        <p class="text-sm text-gray-600 mb-4">
-            Adjust the colors for this theme. Changes here affect all sites using this theme.
-        </p>
-
-        <h3 class="section-title text-sm mb-2">Base Colors</h3>
-        <div class="color-picker-group">
-            <label class="color-input-label">Body Background:</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="bodyBackground"></div>
-                <input type="text" class="color-text-input" data-key="bodyBackground">
-                <span class="hex-code-display" data-key="bodyBackground"></span>
-            </div>
-        </div>
-        <div class="color-picker-group">
-            <label class="color-input-label">Body Text Color:</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="bodyTextColor"></div>
-                <input type="text" class="color-text-input" data-key="bodyTextColor">
-                <span class="hex-code-display" data-key="bodyTextColor"></span>
-            </div>
-        </div>
-        <div class="color-picker-group">
-            <label class="color-input-label">Heading Text Color (<h1>-<h6>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="headingTextColor"></div>
-                <input type="text" class="color-text-input" data-key="headingTextColor">
-                <span class="hex-code-display" data-key="headingTextColor"></span>
-            </div>
-        </div>
-
-        <h3 class="section-title text-sm mt-6 mb-2">Links</h3>
-        <div class="color-picker-group">
-            <label class="color-input-label">Link Color (<a>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="linkColor"></div>
-                <input type="text" class="color-text-input" data-key="linkColor">
-                <span class="hex-code-display" data-key="linkColor"></span>
-            </div>
-        </div>
-        <div class="color-picker-group">
-            <label class="color-input-label">Visited Link Color (<a>:visited):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="visitedLinkColor"></div>
-                <input type="text" class="color-text-input" data-key="visitedLinkColor">
-                <span class="hex-code-display" data-key="visitedLinkColor"></span>
-            </div>
-        </div>
-         <div class="color-picker-group">
-            <label class="color-input-label">Hover Link Color (<a>:hover):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="hoverLinkColor"></div>
-                <input type="text" class="color-text-input" data-key="hoverLinkColor">
-                <span class="hex-code-display" data-key="hoverLinkColor"></span>
-            </div>
-        </div>
-
-        <h3 class="section-title text-sm mt-6 mb-2">Buttons</h3>
-        <div class="color-picker-group">
-            <label class="color-input-label">Button Background (<button>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="buttonBackground"></div>
-                <input type="text" class="color-text-input" data-key="buttonBackground">
-                <span class="hex-code-display" data-key="buttonBackground"></span>
-            </div>
-        </div>
-        <div class="color-picker-group">
-            <label class="color-input-label">Button Text Color (<button>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="buttonTextColor"></div>
-                <input type="text" class="color-text-input" data-key="buttonTextColor">
-                <span class="hex-code-display" data-key="buttonTextColor"></span>
-            </div>
-        </div>
-        <div class="color-picker-group">
-            <label class="color-input-label">Button Hover Background (<button>:hover):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="buttonHoverBackground"></div>
-                <input type="text" class="color-text-input" data-key="buttonHoverBackground">
-                <span class="hex-code-display" data-key="buttonHoverBackground"></span>
-            </div>
-        </div>
-
-
-        <h3 class="section-title text-sm mt-6 mb-2">Borders & Dividers</h3>
-        <div class="color-picker-group">
-            <label class="color-input-label">Border/Divider Color (<hr>, borders):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="borderDividerColor"></div>
-                <input type="text" class="color-text-input" data-key="borderDividerColor">
-                <span class="hex-code-display" data-key="borderDividerColor"></span>
-            </div>
-        </div>
-
-        <h3 class="section-title text-sm mt-6 mb-2">Input Fields</h3>
-        <div class="color-picker-group">
-            <label class="color-input-label">Input Field Background (<input>, <textarea>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="inputFieldBackground"></div>
-                <input type="text" class="color-text-input" data-key="inputFieldBackground">
-                <span class="hex-code-display" data-key="inputFieldBackground"></span>
-            </div>
-        </div>
-        <div class="color-picker-group">
-            <label class="color-input-label">Input Field Text Color (<input>, <textarea>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="inputFieldTextColor"></div>
-                <input type="text" class="color-text-input" data-key="inputFieldTextColor">
-                <span class="hex-code-display" data-key="inputFieldTextColor"></span>
-            </div>
-        </div>
-         <div class="color-picker-group">
-            <label class="color-input-label">Input Placeholder Color:</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="inputPlaceholderColor"></div>
-                <input type="text" class="color-text-input" data-key="inputPlaceholderColor">
-                <span class="hex-code-display" data-key="inputPlaceholderColor"></span>
-            </div>
-        </div>
-
-        <h3 class="section-title text-sm mt-6 mb-2">Code Blocks</h3>
-        <div class="color-picker-group">
-            <label class="color-input-label">Code Block Background (<pre>, <code>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="codeBlockBackground"></div>
-                <input type="text" class="color-text-input" data-key="codeBlockBackground">
-                <span class="hex-code-display" data-key="codeBlockBackground"></span>
-            </div>
-        </div>
-        <div class="color-picker-group">
-            <label class="color-input-label">Code Block Text (<pre>, <code>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="codeBlockText"></div>
-                <input type="text" class="color-text-input" data-key="codeBlockText">
-                <span class="hex-code-display" data-key="codeBlockText"></span>
-            </div>
-        </div>
-
-        <h3 class="section-title text-sm mt-6 mb-2">Blockquotes</h3>
-        <div class="color-picker-group">
-            <label class="color-input-label">Blockquote Background (<blockquote>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="blockquoteBackground"></div>
-                <input type="text" class="color-text-input" data-key="blockquoteBackground">
-                <span class="hex-code-display" data-key="blockquoteBackground"></span>
-            </div>
-        </div>
-        <div class="color-picker-group">
-            <label class="color-input-label">Blockquote Text (<blockquote>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="blockquoteText"></div>
-                <input type="text" class="color-text-input" data-key="blockquoteText">
-                <span class="hex-code-display" data-key="blockquoteText"></span>
-            </div>
-        </div>
-        <div class="color-picker-group">
-            <label class="color-input-label">Blockquote Border (<blockquote>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="blockquoteBorder"></div>
-                <input type="text" class="color-text-input" data-key="blockquoteBorder">
-                <span class="hex-code-display" data-key="blockquoteBorder"></span>
-            </div>
-        </div>
-
-        <h3 class="section-title text-sm mt-6 mb-2">Tables</h3>
-        <div class="color-picker-group">
-            <label class="color-input-label">Table Header Background (<th>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="tableHeaderBackground"></div>
-                <input type="text" class="color-text-input" data-key="tableHeaderBackground">
-                <span class="hex-code-display" data-key="tableHeaderBackground"></span>
-            </div>
-        </div>
-        <div class="color-picker-group">
-            <label class="color-input-label">Table Header Text (<th>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="tableHeaderText"></div>
-                <input type="text" class="color-text-input" data-key="tableHeaderText">
-                <span class="hex-code-display" data-key="tableHeaderText"></span>
-            </div>
-        </div>
-        <div class="color-picker-group">
-            <label class="color-input-label">Table Row Background (Even) (<tr>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="tableRowEvenBackground"></div>
-                <input type="text" class="color-text-input" data-key="tableRowEvenBackground">
-                <span class="hex-code-display" data-key="tableRowEvenBackground"></span>
-            </div>
-        </div>
-        <div class="color-picker-group">
-            <label class="color-input-label">Table Border Color (<table>):</label>
-            <div class="color-input-wrapper">
-                <div class="color-preview" data-key="tableBorderColor"></div>
-                <input type="text" class="color-text-input" data-key="tableBorderColor">
-                <span class="hex-code-display" data-key="tableBorderColor"></span>
-            </div>
-        </div>
-
-
-        <h3 class="section-title text-sm mt-6 mb-2">Image/Media</h3>
-        <div class="color-picker-group">
-            <label class="color-input-label">Image Brightness/Dimming:</label>
-            <div class="color-input-wrapper">
-                <input type="range" min="0" max="100" value="70" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" data-key="imageBrightness">
-                <span class="text-xs text-gray-500 mt-1 block text-right" id="imageBrightnessValue">70% Brightness</span>
-            </div>
-        </div>
-
-
-        <button id="saveChangesBtn" class="button-primary">Save Changes to Current Theme</button>
-        <button id="backToMainBtn" class="button-secondary mt-2">Back to Main</button>
-        <div class="message-box">
-            Adjustments here will update the selected theme.
+    <!-- Actions Section -->
+    <div class="section">
+        <h3>Actions</h3>
+        <div class="btn-group">
+            <button id="exportStylesBtn" class="btn btn-secondary">Export</button>
+            <button id="clearAllBtn" class="btn btn-danger">Clear All</button>
         </div>
     </div>
 
-    <!-- AI Theme Generation (conceptual for popup.html, could be moved to background.js for API calls) -->
-    <div id="aiThemeGenerator" style="display: none;">
-        <h2 class="section-title mt-6">AI Theme Suggestions</h2>
-        <p class="text-sm text-gray-600 mb-4">
-            Let AI suggest optimal dark mode colors for this website.
-        </p>
-        <button id="generateAIThemeBtn" class="button-primary">Generate AI Theme</button>
-        <div id="aiLoadingIndicator" style="display: none;" class="mt-4 text-center text-sm text-gray-600">
-            Generating theme, please wait...
-        </div>
-        <div id="aiGeneratedThemeOutput" class="message-box mt-4" style="display: none;">
-            <strong>AI Generated Theme:</strong>
-            <pre id="aiThemeJsonOutput" class="text-xs mt-2 overflow-auto bg-white p-2 rounded"></pre>
-        </div>
-        <button id="backFromAIBtn" class="button-secondary mt-2">Back to Main</button>
-    </div>
-
+    <script src="popup.js"></script>
 </body>
 </html>

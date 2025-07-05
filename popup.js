@@ -1,3 +1,504 @@
+// YouTheme Popup Script
+// Enhanced implementation with advanced element customization
+
+// Add error handling wrapper at the top of the file
+function handleChromeError(operation) {
+    if (chrome.runtime.lastError) {
+        console.error(`Chrome runtime error in ${operation}:`, chrome.runtime.lastError);
+        return true;
+    }
+    return false;
+}
+
+// Default themes
+const themes = {
+    dark: {
+        name: 'Dark Theme',
+        bodyBackground: '#1a1a1a',
+        bodyTextColor: '#e5e5e5',
+        headingTextColor: '#ffffff',
+        linkColor: '#60a5fa',
+        hoverLinkColor: '#93c5fd',
+        buttonBackground: '#374151',
+        buttonTextColor: '#ffffff',
+        inputFieldBackground: '#374151',
+        inputFieldTextColor: '#e5e5e5',
+        borderDividerColor: '#4b5563',
+        imageBrightness: '70'
+    },
+    midnight: {
+        name: 'Midnight Blue',
+        bodyBackground: '#0f172a',
+        bodyTextColor: '#cbd5e1',
+        headingTextColor: '#f1f5f9',
+        linkColor: '#38bdf8',
+        hoverLinkColor: '#7dd3fc',
+        buttonBackground: '#1e293b',
+        buttonTextColor: '#f1f5f9',
+        inputFieldBackground: '#1e293b',
+        inputFieldTextColor: '#cbd5e1',
+        borderDividerColor: '#334155',
+        imageBrightness: '65'
+    },
+    dracula: {
+        name: 'Dracula',
+        bodyBackground: '#282a36',
+        bodyTextColor: '#f8f8f2',
+        headingTextColor: '#bd93f9',
+        linkColor: '#8be9fd',
+        hoverLinkColor: '#50fa7b',
+        buttonBackground: '#44475a',
+        buttonTextColor: '#f8f8f2',
+        inputFieldBackground: '#44475a',
+        inputFieldTextColor: '#f8f8f2',
+        borderDividerColor: '#6272a4',
+        imageBrightness: '75'
+    }
+};
+
+// DOM elements and state
+let selectedElementInfo = null;
+let isAdvancedMode = false;
+
+// Initialize popup
+document.addEventListener('DOMContentLoaded', () => {
+    initializeEventListeners();
+    initializeColorSync();
+    initializeRangeSliders();
+    loadSavedState();
+    testContentScriptConnection(); // Test connection
+});
+
+// Initialize all event listeners
+function initializeEventListeners() {
+    // Preset theme controls
+    document.getElementById('applyThemeBtn').addEventListener('click', applyPresetTheme);
+    
+    // Element selection
+    document.getElementById('selectElementBtn').addEventListener('click', toggleElementSelection);
+    
+    // Custom styling
+    document.getElementById('applyCustomStyleBtn').addEventListener('click', applyCustomStyles);
+    document.getElementById('resetElementBtn').addEventListener('click', resetElementStyles);
+    
+    // Advanced toggle
+    document.getElementById('advancedToggle').addEventListener('click', toggleAdvancedControls);
+    
+    // Actions
+    document.getElementById('clearAllBtn').addEventListener('click', clearAllStyles);
+    
+    // Export functionality (if button exists)
+    const exportBtn = document.getElementById('exportStylesBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', exportStyles);
+    }
+}
+
+// Initialize color picker and text input synchronization
+function initializeColorSync() {
+    const colorPairs = [
+        ['backgroundColorPicker', 'backgroundColorText'],
+        ['textColorPicker', 'textColorText'],
+        ['borderColorPicker', 'borderColorText']
+    ];
+    
+    colorPairs.forEach(([pickerId, textId]) => {
+        const picker = document.getElementById(pickerId);
+        const textInput = document.getElementById(textId);
+        
+        if (picker && textInput) {
+            // Sync picker to text
+            picker.addEventListener('input', (e) => {
+                textInput.value = e.target.value;
+            });
+            
+            // Sync text to picker
+            textInput.addEventListener('input', (e) => {
+                const value = e.target.value;
+                if (/^#[0-9A-F]{6}$/i.test(value)) {
+                    picker.value = value;
+                }
+            });
+        }
+    });
+}
+
+// Initialize range slider value displays
+function initializeRangeSliders() {
+    const rangeControls = [
+        ['borderWidthRange', 'borderWidthValue', 'px'],
+        ['borderRadiusRange', 'borderRadiusValue', 'px'],
+        ['opacityRange', 'opacityValue', '%'],
+        ['fontSizeRange', 'fontSizeValue', 'px'],
+        ['paddingRange', 'paddingValue', 'px'],
+        ['marginRange', 'marginValue', 'px']
+    ];
+    
+    rangeControls.forEach(([rangeId, valueId, unit]) => {
+        const range = document.getElementById(rangeId);
+        const valueDisplay = document.getElementById(valueId);
+        
+        if (range && valueDisplay) {
+            // Update display on input
+            range.addEventListener('input', (e) => {
+                valueDisplay.textContent = e.target.value + unit;
+            });
+            
+            // Initialize display
+            valueDisplay.textContent = range.value + unit;
+        }
+    });
+}
+
+// Show status message
+function showStatus(message, type = 'info') {
+    const status = document.getElementById('status');
+    status.textContent = message;
+    status.className = `status ${type}`;
+    status.classList.remove('hidden');
+    
+    setTimeout(() => {
+        status.classList.add('hidden');
+    }, 3000);
+}
+
+// Helper function to send messages with timeout and error handling
+function sendMessageWithTimeout(message, callback, timeout = 5000) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (chrome.runtime.lastError) {
+            console.error('Error querying tabs:', chrome.runtime.lastError);
+            showStatus('Error accessing tab', 'warning');
+            return;
+        }
+        
+        if (!tabs || tabs.length === 0) {
+            showStatus('No active tab found', 'warning');
+            return;
+        }
+        
+        let responded = false;
+        
+        // Set up timeout
+        const timeoutId = setTimeout(() => {
+            if (!responded) {
+                responded = true;
+                console.warn('Message timeout for action:', message.action);
+                showStatus('Operation timed out. Please refresh the page and try again.', 'warning');
+            }
+        }, timeout);
+        
+        chrome.tabs.sendMessage(tabs[0].id, message, (response) => {
+            if (responded) return; // Already handled by timeout
+            
+            responded = true;
+            clearTimeout(timeoutId);
+            
+            if (chrome.runtime.lastError) {
+                console.error('Error sending message:', chrome.runtime.lastError);
+                showStatus('Please refresh the page and try again', 'warning');
+                return;
+            }
+            
+            if (callback) {
+                callback(response);
+            }
+        });
+    });
+}
+
+// Updated functions using the new helper
+function applyPresetTheme() {
+    const themeKey = document.getElementById('themeSelect').value;
+    if (!themeKey) {
+        showStatus('Please select a theme first', 'info');
+        return;
+    }
+    
+    const themeData = themes[themeKey];
+    
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (chrome.runtime.lastError || !tabs || tabs.length === 0) {
+            showStatus('Please refresh the page and try again', 'warning');
+            return;
+        }
+        
+        try {
+            chrome.tabs.sendMessage(tabs[0].id, {
+                action: 'applyThemeToPage',
+                themeData: themeData
+            }, (response) => {
+                // Handle response or error
+                if (chrome.runtime.lastError) {
+                    console.log('Content script not available, page may need refresh');
+                    showStatus('Please refresh the page to enable theming', 'warning');
+                    return;
+                }
+                
+                if (response?.success) {
+                    showStatus(`${themeData.name} applied successfully!`, 'success');
+                    chrome.storage.local.set({ activeTheme: themeKey, themePalette: themeData });
+                } else {
+                    showStatus('Theme applied (refresh page if needed)', 'info');
+                    chrome.storage.local.set({ activeTheme: themeKey, themePalette: themeData });
+                }
+            });
+        } catch (error) {
+            console.error('Error sending message:', error);
+            showStatus('Please refresh the page and try again', 'warning');
+        }
+    });
+}
+
+function toggleElementSelection() {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (chrome.runtime.lastError || !tabs || tabs.length === 0) {
+            showStatus('Please refresh the page and try again', 'warning');
+            return;
+        }
+        
+        try {
+            chrome.tabs.sendMessage(tabs[0].id, {
+                action: 'toggleSelectionMode',
+                enabled: true
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.log('Content script not available for element selection');
+                    showStatus('Please refresh the page to enable element selection', 'warning');
+                    return;
+                }
+                
+                if (response?.success) {
+                    showStatus('Click on any element on the page to customize it', 'info');
+                    document.getElementById('selectElementBtn').textContent = '🎯 Selecting... (Click on page)';
+                    document.getElementById('selectElementBtn').style.background = '#fbbf24';
+                    document.getElementById('selectElementBtn').style.color = '#92400e';
+                } else {
+                    showStatus('Element selection may not work - try refreshing the page', 'warning');
+                }
+            });
+        } catch (error) {
+            console.error('Error sending message:', error);
+            showStatus('Please refresh the page and try again', 'warning');
+        }
+    });
+}
+
+function applyCustomStyles() {
+    if (!selectedElementInfo) {
+        showStatus('Please select an element first', 'info');
+        return;
+    }
+    
+    const styles = collectCurrentStyles();
+    
+    if (Object.keys(styles).length === 0) {
+        showStatus('Please modify at least one property', 'info');
+        return;
+    }
+    
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (chrome.runtime.lastError || !tabs || tabs.length === 0) {
+            showStatus('Please refresh the page and try again', 'warning');
+            return;
+        }
+        
+        try {
+            chrome.tabs.sendMessage(tabs[0].id, {
+                action: 'applyCustomStyle',
+                selector: selectedElementInfo.selector,
+                styles: styles
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.log('Content script not available for custom styling');
+                    showStatus('Please refresh the page to enable custom styling', 'warning');
+                    return;
+                }
+                
+                if (response?.success) {
+                    showStatus('Custom style applied!', 'success');
+                    saveCustomStyles(selectedElementInfo.selector, styles);
+                } else {
+                    showStatus('Style may have been applied - check the page', 'info');
+                    saveCustomStyles(selectedElementInfo.selector, styles);
+                }
+            });
+        } catch (error) {
+            console.error('Error sending message:', error);
+            showStatus('Please refresh the page and try again', 'warning');
+        }
+    });
+}
+
+function resetElementStyles() {
+    if (!selectedElementInfo) {
+        showStatus('Please select an element first', 'info');
+        return;
+    }
+    
+    sendMessageWithTimeout({
+        action: 'resetElementStyle',
+        selector: selectedElementInfo.selector
+    }, (response) => {
+        showStatus('Element styles reset', 'success');
+        resetFormValues();
+    });
+}
+
+function resetFormValues() {
+    document.getElementById('backgroundColorPicker').value = '#1a1a1a';
+    document.getElementById('backgroundColorText').value = '#1a1a1a';
+    document.getElementById('textColorPicker').value = '#ffffff';
+    document.getElementById('textColorText').value = '#ffffff';
+    document.getElementById('borderColorPicker').value = '#4b5563';
+    document.getElementById('borderColorText').value = '#4b5563';
+    
+    // Reset advanced controls
+    document.getElementById('borderWidthRange').value = '1';
+    document.getElementById('borderRadiusRange').value = '0';
+    document.getElementById('opacityRange').value = '100';
+    document.getElementById('fontSizeRange').value = '14';
+    document.getElementById('paddingRange').value = '10';
+    document.getElementById('marginRange').value = '0';
+    
+    // Update displays
+    document.getElementById('borderWidthValue').textContent = '1px';
+    document.getElementById('borderRadiusValue').textContent = '0px';
+    document.getElementById('opacityValue').textContent = '100%';
+    document.getElementById('fontSizeValue').textContent = '14px';
+    document.getElementById('paddingValue').textContent = '10px';
+    document.getElementById('marginValue').textContent = '0px';
+}
+
+function toggleAdvancedControls() {
+    const advancedControls = document.getElementById('advancedControls');
+    const toggleButton = document.getElementById('advancedToggle');
+    
+    isAdvancedMode = !isAdvancedMode;
+    
+    if (isAdvancedMode) {
+        advancedControls.classList.remove('hidden');
+        toggleButton.textContent = '⚙️ Hide Advanced Options';
+    } else {
+        advancedControls.classList.add('hidden');
+        toggleButton.textContent = '⚙️ Show Advanced Options';
+    }
+}
+
+function clearAllStyles() {
+    sendMessageWithTimeout({
+        action: 'clearStyles'
+    }, (response) => {
+        if (response?.success) {
+            showStatus('All styles cleared!', 'success');
+            chrome.storage.local.clear();
+            resetUI();
+        }
+    });
+}
+
+function exportStyles() {
+    chrome.storage.local.get(['customStyles'], (result) => {
+        const styles = result.customStyles || {};
+        const exportData = {
+            timestamp: new Date().toISOString(),
+            customStyles: styles
+        };
+        
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'youtheme-styles.json';
+        a.click();
+        
+        URL.revokeObjectURL(url);
+        showStatus('Styles exported!', 'success');
+    });
+}
+
+function saveCustomStyles(selector, styles) {
+    chrome.storage.local.get(['customStyles'], (result) => {
+        const customStyles = result.customStyles || {};
+        customStyles[selector] = styles;
+        chrome.storage.local.set({ customStyles });
+    });
+}
+
+function loadSavedState() {
+    chrome.storage.local.get(['activeTheme', 'selectedElement'], (result) => {
+        // Load active theme
+        if (result.activeTheme) {
+            document.getElementById('themeSelect').value = result.activeTheme;
+        }
+        
+        // Load selected element if it exists
+        if (result.selectedElement) {
+            const elementData = result.selectedElement;
+            
+            // Check if selection is recent (within 10 minutes)
+            const isRecent = (Date.now() - elementData.timestamp) < 10 * 60 * 1000;
+            
+            if (isRecent) {
+                // Restore selected element state
+                selectedElementInfo = elementData;
+                
+                // Show element customizer
+                document.getElementById('elementCustomizer').classList.remove('hidden');
+                
+                // Update element info
+                const info = `Selected: ${elementData.tagName}${elementData.className ? '.' + elementData.className.split(' ')[0] : ''}${elementData.id ? '#' + elementData.id : ''}`;
+                document.getElementById('elementInfo').textContent = info;
+                
+                showStatus('Previously selected element loaded - ready to customize!', 'success');
+            } else {
+                // Clear old selection
+                chrome.storage.local.remove('selectedElement');
+            }
+        }
+    });
+}
+
+function clearSelectedElement() {
+    chrome.storage.local.remove('selectedElement');
+    
+    // Send message to content script to remove visual indicator (non-critical)
+    sendMessageWithTimeout({
+        action: 'clearElementSelection'
+    }, null, 2000); // Shorter timeout for non-critical operation
+}
+
+function resetUI() {
+    document.getElementById('elementCustomizer').classList.add('hidden');
+    document.getElementById('selectElementBtn').textContent = '🎯 Select Element to Customize';
+    document.getElementById('selectElementBtn').style.background = '';
+    document.getElementById('selectElementBtn').style.color = '';
+    selectedElementInfo = null;
+    resetFormValues();
+    clearSelectedElement();
+}
+
+// Listen for messages from content script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'elementSelected') {
+        selectedElementInfo = message;
+        
+        // Show element customizer
+        document.getElementById('elementCustomizer').classList.remove('hidden');
+        document.getElementById('selectElementBtn').textContent = '🎯 Select Element to Customize';
+        document.getElementById('selectElementBtn').style.background = '';
+        document.getElementById('selectElementBtn').style.color = '';
+        
+        // Update element info
+        const info = `Selected: ${message.tagName.toLowerCase()}${message.className ? '.' + message.className.split(' ')[0] : ''}${message.id ? '#' + message.id : ''}`;
+        document.getElementById('elementInfo').textContent = info;
+        
+        showStatus('Element selected! Customize its appearance below.', 'success');
+    }
+});
+
+console.log('YouTheme popup loaded with advanced element customizer');
+
 let domElements = {};
 
 // Define color palettes for each theme. These are the default themes the user can choose from.
@@ -28,54 +529,54 @@ const themePalettes = {
         imageBrightness: "70" // Represent range value as string
     },
     "midnight-blue": {
-        bodyBackground: "#0D1117",
-        bodyTextColor: "#C9D1D9",
-        headingTextColor: "#FFFFFF",
-        linkColor: "#58A6FF",
-        visitedLinkColor: "#A28BDE",
-        hoverLinkColor: "#85B9FF",
-        buttonBackground: "#30363D",
-        buttonTextColor: "#C9D1D9",
-        buttonHoverBackground: "#444C56",
-        borderDividerColor: "#30363D",
-        inputFieldBackground: "#161B22",
-        inputFieldTextColor: "#C9D1D9",
-        inputPlaceholderColor: "#8B949E",
-        codeBlockBackground: "#161B22",
-        codeBlockText: "#C9D1D9",
-        blockquoteBackground: "#161B22",
-        blockquoteText: "#8B949E",
-        blockquoteBorder: "#58A6FF",
-        tableHeaderBackground: "#161B22",
-        tableHeaderText: "#C9D1D9",
-        tableRowEvenBackground: "#0A0D11",
-        tableBorderColor: "#30363D",
-        imageBrightness: "60"
+        bodyBackground: "#0F172A",
+        bodyTextColor: "#CBD5E1",
+        headingTextColor: "#F1F5F9",
+        linkColor: "#38BDF8",
+        visitedLinkColor: "#7DD3FC",
+        hoverLinkColor: "#0EA5E9",
+        buttonBackground: "#1E293B",
+        buttonTextColor: "#F8FAFC",
+        buttonHoverBackground: "#334155",
+        borderDividerColor: "#334155",
+        inputFieldBackground: "#1E293B",
+        inputFieldTextColor: "#F8FAFC",
+        inputPlaceholderColor: "#64748B",
+        codeBlockBackground: "#1E293B",
+        codeBlockText: "#F8FAFC",
+        blockquoteBackground: "#1E293B",
+        blockquoteText: "#E2E8F0",
+        blockquoteBorder: "#38BDF8",
+        tableHeaderBackground: "#1E293B",
+        tableHeaderText: "#F8FAFC",
+        tableRowEvenBackground: "#172132",
+        tableBorderColor: "#334155",
+        imageBrightness: "65"
     },
     "dracula-inspired": {
         bodyBackground: "#282A36",
         bodyTextColor: "#F8F8F2",
-        headingTextColor: "#F8F8F2",
+        headingTextColor: "#BD93F9",
         linkColor: "#8BE9FD",
-        visitedLinkColor: "#BD93F9",
-        hoverLinkColor: "#A3F7FF",
+        visitedLinkColor: "#FF79C6",
+        hoverLinkColor: "#50FA7B",
         buttonBackground: "#44475A",
         buttonTextColor: "#F8F8F2",
         buttonHoverBackground: "#6272A4",
-        borderDividerColor: "#44475A",
-        inputFieldBackground: "#343746",
+        borderDividerColor: "#6272A4",
+        inputFieldBackground: "#44475A",
         inputFieldTextColor: "#F8F8F2",
         inputPlaceholderColor: "#6272A4",
-        codeBlockBackground: "#343746",
+        codeBlockBackground: "#44475A",
         codeBlockText: "#F8F8F2",
-        blockquoteBackground: "#343746",
-        blockquoteText: "#BD93F9",
-        blockquoteBorder: "#FF79C6",
-        tableHeaderBackground: "#343746",
+        blockquoteBackground: "#44475A",
+        blockquoteText: "#F8F8F2",
+        blockquoteBorder: "#BD93F9",
+        tableHeaderBackground: "#44475A",
         tableHeaderText: "#F8F8F2",
-        tableRowEvenBackground: "#21222C",
-        tableBorderColor: "#44475A",
-        imageBrightness: "80"
+        tableRowEvenBackground: "#373844",
+        tableBorderColor: "#6272A4",
+        imageBrightness: "75"
     },
     "nord-inspired": {
         bodyBackground: "#2E3440",
@@ -83,450 +584,48 @@ const themePalettes = {
         headingTextColor: "#D8DEE9",
         linkColor: "#81A1C1",
         visitedLinkColor: "#B48EAD",
-        hoverLinkColor: "#88C0D0",
+        hoverLinkColor: "#81A1C1",
         buttonBackground: "#4C566A",
         buttonTextColor: "#ECEFF4",
-        buttonHoverBackground: "#5E6C80",
+        buttonHoverBackground: "#5E81AC",
         borderDividerColor: "#4C566A",
-        inputFieldBackground: "#3B4252",
+        inputFieldBackground: "#434C5E",
         inputFieldTextColor: "#ECEFF4",
-        inputPlaceholderColor: "#88C0D0",
-        codeBlockBackground: "#3B4252",
+        inputPlaceholderColor: "#697386",
+        codeBlockBackground: "#434C5E",
         codeBlockText: "#ECEFF4",
-        blockquoteBackground: "#3B4252",
-        blockquoteText: "#E5E9F0",
-        blockquoteBorder: "#A3BE8C",
-        tableHeaderBackground: "#3B4252",
+        blockquoteBackground: "#434C5E",
+        blockquoteText: "#ECEFF4",
+        blockquoteBorder: "#81A1C1",
+        tableHeaderBackground: "#434C5E",
         tableHeaderText: "#ECEFF4",
-        tableRowEvenBackground: "#292F38",
+        tableRowEvenBackground: "#3B4252",
         tableBorderColor: "#4C566A",
-        imageBrightness: "65"
+        imageBrightness: "70"
     }
 };
 
-// Cache color inputs and previews using a Map for O(1) access
-const colorInputs = new Map();
-const colorPreviews = new Map();
-const hexDisplays = new Map();
-
-// Initialize color input caching - O(n) one-time operation
-document.querySelectorAll('.color-text-input').forEach(input => {
-    const key = input.dataset.key;
-    colorInputs.set(key, input);
-    
-    // Validate and sanitize hex input
-    input.addEventListener('input', (e) => {
-        let value = e.target.value.trim();
-        if (!value.startsWith('#')) value = '#' + value;
-        value = value.slice(0, 7); // Limit to 6 hex digits + #
-        if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
-            updateColorPreview(key, value);
-            updateHexDisplay(key, value);
-            debouncedSaveTheme({ [key]: value });
-        }
-    });
-});
-
-document.querySelectorAll('.color-preview').forEach(preview => {
-    const key = preview.dataset.key;
-    colorPreviews.set(key, preview);
-    preview.addEventListener('click', () => colorInputs.get(key).click());
-});
-
-document.querySelectorAll('.hex-code-display').forEach(display => {
-    hexDisplays.set(display.dataset.key, display);
-});
-
-// Optimized theme application using requestAnimationFrame
-function updateColorPreview(key, value) {
-    requestAnimationFrame(() => {
-        const preview = colorPreviews.get(key);
-        if (preview) preview.style.backgroundColor = value;
-    });
-}
-
-function updateHexDisplay(key, value) {
-    requestAnimationFrame(() => {
-        const display = hexDisplays.get(key);
-        if (display) display.textContent = value.toUpperCase();
-    });
-}
-
-// Debounced theme save function
-let saveTimeout;
-function debouncedSaveTheme(themeData) {
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => {
-        chrome.storage.local.set({ themePalette: themeData }, () => {
-            console.log('Theme saved');
-        });
-    }, 500);
-}
-
-// Event Delegation for better performance
-
-document.addEventListener('click', (e) => {
-    const target = e.target;
-    
-    if (target.id === 'applyThemeBtn') {
-        console.log('Clicked');
-        applySelectedTheme();
-    } else if (target.id === 'customizeThemeBtn') {
-        showCustomizer();
-    } else if (target.id === 'backToMainBtn' || target.id === 'backFromAIBtn') {
-        showMainView();
-    } else if (target.id === 'generateAIThemeBtn') {
-        generateAITheme();
-    }
-});
-
-// Optimized image brightness handling
-const brightnessSlider = document.querySelector('[data-key="imageBrightness"]');
-if (brightnessSlider) {
-    brightnessSlider.addEventListener('input', (e) => {
-        requestAnimationFrame(() => {
-            domElements.imageBrightnessValue.textContent = `${e.target.value}% Brightness`;
-            debouncedSaveTheme({ imageBrightness: e.target.value });
-        });
-    });
-}
-
-// Helper: Get current palette (from storage or default)
-function getCurrentPalette(callback) {
-    const selectedTheme = domElements.themeSelect.value;
-    chrome.storage.local.get(['themePalette'], (result) => {
-        if (result.themePalette) {
-            callback(result.themePalette);
-        } else {
-            callback({ ...themePalettes[selectedTheme] });
-        }
-    });
-}
-
-// Load palette into customizer UI
-function loadCustomizerPalette(palette) {
-    Object.keys(palette).forEach(key => {
-        if (colorInputs.has(key)) {
-            colorInputs.get(key).value = palette[key];
-            updateColorPreview(key, palette[key]);
-            updateHexDisplay(key, palette[key]);
-        }
-        if (key === 'imageBrightness') {
-            const slider = document.querySelector('[data-key="imageBrightness"]');
-            if (slider) {
-                slider.value = palette[key];
-                domElements.imageBrightnessValue.textContent = `${palette[key]}% Brightness`;
-            }
-        }
-    });
-}
-
-// Save full palette
-function saveFullPalette() {
-    const palette = {};
-    colorInputs.forEach((input, key) => {
-        palette[key] = input.value;
-    });
-    const slider = document.querySelector('[data-key="imageBrightness"]');
-    if (slider) palette.imageBrightness = slider.value;
-    chrome.storage.local.set({ themePalette: palette }, () => {
-        applyThemeToCurrentTab(palette);
-    });
-}
-
-// Apply theme to current tab (send directly to content script)
-function applyThemeToCurrentTab(palette) {
-    chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-        if (!tab) {
-            console.error('[popup.js] No active tab found.');
+// Test content script availability
+function testContentScriptConnection() {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (chrome.runtime.lastError) {
+            console.error('Error querying tabs:', chrome.runtime.lastError);
             return;
         }
-        chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            files: ['content.js']
-        }, (injectResults) => {
+        
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'ping' }, (response) => {
             if (chrome.runtime.lastError) {
-                console.error('[popup.js] Error injecting content script:', chrome.runtime.lastError.message);
+                console.warn('Content script not available:', chrome.runtime.lastError.message);
+                showStatus('Please refresh the page to enable theming', 'warning');
+                return;
+            }
+            
+            if (response?.pong) {
+                console.log('Content script is available');
             } else {
-                console.log('[popup.js] Content script injected or already present.', injectResults);
-            }
-            chrome.tabs.sendMessage(tab.id, {
-                action: 'applyThemeToPage',
-                themeData: palette
-            }, (response) => {
-                if (chrome.runtime.lastError) {
-                    console.error('[popup.js] Error sending message to content script:', chrome.runtime.lastError.message);
-                } else {
-                    console.log('[popup.js] Message sent to content script. Response:', response);
+                console.warn('Content script did not respond properly');
+                showStatus('Please refresh the page to enable theming', 'warning');
                 }
-            });
         });
     });
 }
-
-// Update color input listeners to update full palette
-colorInputs.forEach((input, key) => {
-    input.addEventListener('input', () => {
-        saveFullPalette();
-    });
-});
-
-// Save button event
-const saveBtn = document.getElementById('saveChangesBtn');
-if (saveBtn) {
-    saveBtn.addEventListener('click', saveFullPalette);
-}
-
-// Show customizer and load palette
-function showCustomizer() {
-    domElements.mainPopupView.style.display = 'none';
-    domElements.customizerView.style.display = 'block';
-    domElements.aiThemeGenerator.style.display = 'none';
-    domElements.editingThemeName.textContent = domElements.themeSelect.value;
-    getCurrentPalette(loadCustomizerPalette);
-}
-
-// Apply selected theme (from dropdown)
-function applySelectedTheme() {
-    const selectedTheme = domElements.themeSelect.value;
-    const palette = { ...themePalettes[selectedTheme] };
-    chrome.storage.local.set({ themePalette: palette, activeTheme: selectedTheme }, () => {
-        applyThemeToCurrentTab(palette);
-    });
-}
-
-// Memoized theme generation with proper error handling
-const memoizedThemes = new Map();
-async function generateAITheme() {
-    const url = await getCurrentTabURL();
-    
-    if (memoizedThemes.has(url)) {
-        displayGeneratedTheme(memoizedThemes.get(url));
-        return;
-    }
-    
-    domElements.aiLoadingIndicator.style.display = 'block';
-    domElements.aiGeneratedThemeOutput.style.display = 'none';
-    
-    try {
-        const response = await fetch('your-ai-endpoint', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({ url }),
-            credentials: 'same-origin'
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const theme = await response.json();
-        memoizedThemes.set(url, theme);
-        displayGeneratedTheme(theme);
-    } catch (error) {
-        console.error('AI theme generation failed:', error);
-        domElements.aiGeneratedThemeOutput.style.display = 'block';
-        domElements.aiThemeJsonOutput.textContent = 'Error generating theme. Please try again.';
-    } finally {
-        domElements.aiLoadingIndicator.style.display = 'none';
-    }
-}
-
-function displayGeneratedTheme(theme) {
-    if (!theme) return;
-    
-    domElements.aiGeneratedThemeOutput.style.display = 'block';
-    domElements.aiThemeJsonOutput.textContent = JSON.stringify(theme, null, 2);
-}
-
-async function getCurrentTabURL() {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    return tab ? tab.url : '';
-}
-
-// Initialize the popup with error handling
-document.addEventListener('DOMContentLoaded', () => {
-    // Now the DOM is ready, so all elements exist
-    domElements = {
-        themeSelect: document.getElementById('themeSelect'),
-        mainPopupView: document.getElementById('mainPopupView'),
-        customizerView: document.getElementById('customizerView'),
-        aiThemeGenerator: document.getElementById('aiThemeGenerator'),
-        editingThemeName: document.getElementById('editingThemeName'),
-        aiLoadingIndicator: document.getElementById('aiLoadingIndicator'),
-        aiGeneratedThemeOutput: document.getElementById('aiGeneratedThemeOutput'),
-        aiThemeJsonOutput: document.getElementById('aiThemeJsonOutput'),
-        imageBrightnessValue: document.getElementById('imageBrightnessValue')
-    };
-
-    try {
-        showMainView();
-        chrome.storage.local.get(['activeTheme', 'themePalette'], (result) => {
-            if (result.activeTheme && themePalettes[result.activeTheme]) {
-                domElements.themeSelect.value = result.activeTheme;
-            }
-            if (result.themePalette) {
-                loadCustomizerPalette(result.themePalette);
-            }
-        });
-        const applyBtn = document.getElementById('applyThemeBtn');
-        if (applyBtn) {
-            applyBtn.addEventListener('click', () => {
-                console.log('Clicked (direct listener)');
-            });
-        }
-    } catch (error) {
-        console.error('Failed to initialize popup:', error);
-    }
-});
-
-function showMainView() {
-    if (domElements.mainPopupView) domElements.mainPopupView.style.display = 'block';
-    if (domElements.customizerView) domElements.customizerView.style.display = 'none';
-    if (domElements.aiThemeGenerator) domElements.aiThemeGenerator.style.display = 'none';
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM refs ---
-    const dom = {
-        mainPopupView: document.getElementById('mainPopupView'),
-        customizerView: document.getElementById('customizerView'),
-        aiThemeGenerator: document.getElementById('aiThemeGenerator'),
-        themeSelect: document.getElementById('themeSelect'),
-        applyThemeBtn: document.getElementById('applyThemeBtn'),
-        customizeThemeBtn: document.getElementById('customizeThemeBtn'),
-        editingThemeName: document.getElementById('editingThemeName'),
-        saveChangesBtn: document.getElementById('saveChangesBtn'),
-        backToMainBtn: document.getElementById('backToMainBtn'),
-        generateAIThemeBtn: document.getElementById('generateAIThemeBtn'),
-        aiLoadingIndicator: document.getElementById('aiLoadingIndicator'),
-        aiGeneratedThemeOutput: document.getElementById('aiGeneratedThemeOutput'),
-        aiThemeJsonOutput: document.getElementById('aiThemeJsonOutput'),
-        backFromAIBtn: document.getElementById('backFromAIBtn'),
-        imageBrightnessSlider: document.querySelector('input[type="range"][data-key="imageBrightness"]'),
-        imageBrightnessValueSpan: document.getElementById('imageBrightnessValue')
-    };
-
-    // --- View switching ---
-    function showView(viewId) {
-        ['mainPopupView', 'customizerView', 'aiThemeGenerator'].forEach(id => {
-            if (dom[id]) dom[id].style.display = 'none';
-        });
-        const target = document.getElementById(viewId);
-        if (target) target.style.display = 'block';
-    }
-
-    // --- Customizer population ---
-    function applyThemeToCustomizer(themeKey) {
-        const palette = themePalettes[themeKey];
-        if (!palette) return;
-        if (dom.editingThemeName) dom.editingThemeName.textContent = dom.themeSelect.options[dom.themeSelect.selectedIndex].text;
-        if (!dom.customizerView) return;
-
-        for (const key in palette) {
-            if (key !== 'imageBrightness') {
-                const preview = dom.customizerView.querySelector(`.color-preview[data-key="${key}"]`);
-                const input = dom.customizerView.querySelector(`input.color-text-input[data-key="${key}"]`);
-                const hex = dom.customizerView.querySelector(`.hex-code-display[data-key="${key}"]`);
-                if (preview) preview.style.backgroundColor = palette[key];
-                if (input) input.value = palette[key];
-                if (hex) hex.textContent = palette[key];
-            } else if (dom.imageBrightnessSlider && dom.imageBrightnessValueSpan) {
-                dom.imageBrightnessSlider.value = palette[key];
-                dom.imageBrightnessValueSpan.textContent = `${palette[key]}% Brightness`;
-            }
-        }
-    }
-
-    // --- Theme application to page ---
-    function applyThemeToPage(themeKey, palette) {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (!tabs[0]) return;
-            chrome.scripting.executeScript({
-                target: { tabId: tabs[0].id },
-                files: ['content.js']
-            }, () => {
-                chrome.tabs.sendMessage(tabs[0].id, { action: "applyThemeToPage", themeData: palette }, (response) => {
-                    if (chrome.runtime.lastError) {
-                        console.error(`[popup.js] Error sending message: ${chrome.runtime.lastError.message}`);
-                    } else {
-                        console.log(`[popup.js] Theme applied, response:`, response);
-                    }
-                });
-            });
-        });
-    }
-
-    // --- AI Theme Generation (stub, as before) ---
-    async function generateAITheme() {
-        // ...your AI theme logic here (unchanged)...
-    }
-
-    // --- Event Listeners ---
-    if (dom.themeSelect) {
-        dom.themeSelect.addEventListener('change', e => applyThemeToCustomizer(e.target.value));
-    }
-    if (dom.applyThemeBtn) {
-        dom.applyThemeBtn.addEventListener('click', () => {
-            const key = dom.themeSelect ? dom.themeSelect.value : 'default-dark';
-            const palette = themePalettes[key];
-            if (palette) {
-                chrome.storage.local.set({ activeTheme: key, themePalette: palette }, () => {
-                    applyThemeToPage(key, palette);
-                });
-            }
-        });
-    }
-    if (dom.customizeThemeBtn) {
-        dom.customizeThemeBtn.addEventListener('click', () => {
-            showView('customizerView');
-            applyThemeToCustomizer(dom.themeSelect ? dom.themeSelect.value : 'default-dark');
-        });
-    }
-    if (dom.saveChangesBtn) {
-        dom.saveChangesBtn.addEventListener('click', () => {
-            const key = dom.themeSelect ? dom.themeSelect.value : 'default-dark';
-            const bodyBgInput = dom.customizerView ? dom.customizerView.querySelector('input.color-text-input[data-key="bodyBackground"]') : null;
-            if (bodyBgInput) {
-                if (!themePalettes[key]) themePalettes[key] = {};
-                themePalettes[key].bodyBackground = bodyBgInput.value;
-                chrome.storage.local.set({ activeTheme: key, themePalette: themePalettes[key] }, () => {
-                    applyThemeToPage(key, themePalettes[key]);
-                });
-            }
-        });
-    }
-    if (dom.backToMainBtn) dom.backToMainBtn.addEventListener('click', () => showView('mainPopupView'));
-    if (dom.generateAIThemeBtn) dom.generateAIThemeBtn.addEventListener('click', generateAITheme);
-    if (dom.backFromAIBtn) dom.backFromAIBtn.addEventListener('click', () => showView('mainPopupView'));
-    if (dom.imageBrightnessSlider && dom.imageBrightnessValueSpan) {
-        dom.imageBrightnessSlider.addEventListener('input', e => {
-            dom.imageBrightnessValueSpan.textContent = `${e.target.value}% Brightness`;
-        });
-    }
-
-    // --- Initial load ---
-    if (dom.themeSelect) {
-        showView('mainPopupView');
-        applyThemeToCustomizer(dom.themeSelect.value);
-    }
-
-    chrome.storage.local.get(['activeTheme', 'themePalette'], (result) => {
-        if (result.activeTheme && result.themePalette) {
-            if (!themePalettes[result.activeTheme]) {
-                themePalettes[result.activeTheme] = result.themePalette;
-                const newOption = document.createElement('option');
-                newOption.value = result.activeTheme;
-                newOption.textContent = 'AI Generated Theme (' + new Date(parseInt(result.activeTheme.split('-').pop())).toLocaleTimeString() + ')';
-                if (dom.themeSelect) dom.themeSelect.appendChild(newOption);
-            }
-            if (dom.themeSelect) dom.themeSelect.value = result.activeTheme;
-            applyThemeToCustomizer(result.activeTheme);
-        }
-    });
-});
-
-//# sourceMappingURL=popup.js.map

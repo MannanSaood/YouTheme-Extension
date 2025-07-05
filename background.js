@@ -52,6 +52,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     // For now, just a conceptual response:
     sendResponse({ status: "success", message: "AI theme generation triggered (conceptual)." });
+  } else if (message.action === 'elementSelected') {
+    // Send to popup
+    chrome.runtime.sendMessage(message);
   }
 
   // If no action matched, allow other listeners to process or send no response.
@@ -86,3 +89,5 @@ chrome.runtime.onInstalled.addListener(() => {
     console.log('[background.js] Default theme "default-dark" set in storage.');
   });
 });
+
+console.log('YouTheme background script loaded');
